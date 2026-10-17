@@ -46,6 +46,8 @@ func main() {
 
 The same code is in `example_test.go`, so `make test` checks that it compiles.
 
+The full API, with the spec's descriptions as doc comments, is in the [Go reference](https://pkg.go.dev/github.com/psyb0t/go-dydx-indexer) and in `go doc github.com/psyb0t/go-dydx-indexer`.
+
 Method names come from the spec's operation IDs: `GetCandles`, `GetFills`, `ListPerpetualMarkets`, `GetPerpetualMarket` (the orderbook) and so on. The spec uses two IDs twice, so `make generate` renames the second of each: `GetAffiliateAddress` is `GET /affiliates/address` and `GetComplianceScreen` is `GET /compliance/screen/{address}`. `GetAddress` and `Screen` keep their original paths. `Get` is the sparklines endpoint.
 
 Prices, sizes and other decimal values come back as strings, as the indexer sends them.

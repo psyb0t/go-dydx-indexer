@@ -55,7 +55,7 @@ Typed methods are the operation ID plus `WithResponse`:
 
 `GetAffiliateAddress` and `GetComplianceScreen` are renamed by `make generate`; the upstream spec gives them the same IDs as `GetAddress` and `Screen`.
 
-Check `client.gen.go` for the exact parameter types of a method before using it.
+Check the exact parameter types of a method with `go doc github.com/psyb0t/go-dydx-indexer <Method>` before using it.
 
 ## Types
 

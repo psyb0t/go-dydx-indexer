@@ -2,6 +2,11 @@
 
 All notable changes per release. Versions follow [semver](https://semver.org).
 
+## v0.1.1, 2026-10-17
+
+- Documentation only. The agent skill explains how to look up every endpoint, parameter and model with `go doc` or on pkg.go.dev, and declares its license.
+- The README points to the full API reference, and the examples in the README and the skill were checked against the current code.
+
 ## v0.1.0, 2026-10-17
 
 - Added `dydxindexer`, a REST client generated with oapi-codegen from the dYdX v4 Indexer OpenAPI document (Indexer API, spec version v1.0.0, OpenAPI 3.0.0, from `indexer/services/comlink/public/swagger.json` in dydxprotocol/v4-chain). It covers all 49 paths: addresses and subaccounts, affiliates, asset and perpetual positions, candles, compliance screening, fills, funding, historical PnL, orderbooks, orders, perpetual markets, rewards, sparklines, trades, transfers, Turnkey sign-in and vaults.

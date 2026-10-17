@@ -1,6 +1,7 @@
 ---
 name: go-dydx-indexer
 description: Unofficial Go client for the dYdX v4 Indexer HTTP API, generated with oapi-codegen. `dydxindexer.NewClientWithResponses(baseURL)` from `github.com/psyb0t/go-dydx-indexer` gives a typed method for every endpoint in the indexer's OpenAPI spec (block height and time, perpetual markets, orderbooks, candles, trades, historical funding, sparklines, subaccounts, positions, orders, fills, transfers, PnL, rewards, affiliates, vaults, compliance screening), with decoded `JSON200` response fields. The API is public and needs no key. Use when Go code needs dYdX v4 market or account data from the indexer, or already imports go-dydx-indexer.
+license: AGPL-3.0-only
 homepage: https://github.com/psyb0t/go-dydx-indexer
 user-invocable: true
 metadata:
@@ -38,6 +39,20 @@ For install details, the operation list and response types, see [references/setu
 
 - Placing or cancelling orders, or any other transaction. That goes to a dYdX validator node, not the indexer.
 - Live streaming. The indexer WebSocket feed is not in this client.
+
+## Finding endpoints and types
+
+The examples below cover a few calls. Every operation in the spec has a generated method, and the spec's descriptions are on them as Go doc comments. Look names and fields up instead of guessing. After `go get github.com/psyb0t/go-dydx-indexer`, from inside your module:
+
+```bash
+go doc github.com/psyb0t/go-dydx-indexer ClientWithResponsesInterface  # every endpoint method
+go doc github.com/psyb0t/go-dydx-indexer GetCandlesParams              # one method, params type or model
+go doc -all github.com/psyb0t/go-dydx-indexer                          # the whole package
+```
+
+The same documentation is at https://pkg.go.dev/github.com/psyb0t/go-dydx-indexer.
+
+Method names come from the spec's operation IDs. `<OperationId>WithResponse` takes the context, then the path parameters in order, then `*<OperationId>Params` when the operation has query or header parameters, then the request body when it has one. The `JSON200` field holds the decoded body; it is nil for any other status. The spec uses two operation IDs twice, so the second of each is renamed: `GetAffiliateAddress` is `GET /affiliates/address` and `GetComplianceScreen` is `GET /compliance/screen/{address}`.
 
 ## Usage
 
