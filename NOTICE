@@ -1,0 +1,13 @@
+The generated dYdX Indexer REST API definitions and descriptions derive from
+the Indexer OpenAPI specification published by dYdX Trading Inc. in the
+dydxprotocol/v4-chain repository, under the GNU Affero General Public License
+version 3 with the additional terms in LICENSE.dydx.
+Copyright (C) 2025 dYdX Trading Inc.
+
+Source: https://raw.githubusercontent.com/dydxprotocol/v4-chain/main/indexer/services/comlink/public/swagger.json
+Upstream license: LICENSE.dydx
+
+The generation pipeline renames the two operation IDs the specification uses
+twice before generating Go types and HTTP client methods. The downloaded
+specification is not shipped.
+The repository is licensed under LICENSE (AGPL-3.0).

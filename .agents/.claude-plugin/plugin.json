@@ -1,0 +1,8 @@
+{
+  "name": "go-dydx-indexer",
+  "description": "Unofficial Go client for the dYdX v4 Indexer API: typed methods for markets, orderbooks, candles, trades, funding, subaccounts, positions, orders, fills, transfers and PnL, generated from the indexer's OpenAPI spec.",
+  "author": { "name": "psyb0t", "url": "https://github.com/psyb0t" },
+  "homepage": "https://github.com/psyb0t/go-dydx-indexer",
+  "license": "AGPL-3.0-only",
+  "keywords": ["dydx", "dydx-v4", "indexer", "api-client", "openapi", "go-library"]
+}
