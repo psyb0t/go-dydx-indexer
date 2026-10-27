@@ -12,7 +12,7 @@ The client is generated. `make generate` runs `go generate ./...`, which runs th
 
 ## Stack
 
-- Go 1.26.9, one package `dydxindexer` at the module root.
+- Go 1.26.10, one package `dydxindexer` at the module root.
 - oapi-codegen v2 as a `go.mod` tool, with `github.com/oapi-codegen/runtime` at runtime.
 - `config.yaml` maps `number` to `float64`.
 
