@@ -2,6 +2,14 @@
 
 All notable changes per release. Versions follow [semver](https://semver.org).
 
+## v0.1.4, 2026-11-19
+
+- Added the `/gasSponsorship` endpoint (spec version v1.0.0) with `Client.RequestSponsorship` and `Client.RequestSponsorshipWithBody`, and `ClientWithResponses.RequestSponsorshipWithResponse` and `ClientWithResponses.RequestSponsorshipWithBodyWithResponse`.
+- Added the request builders `NewRequestSponsorshipRequest` and `NewRequestSponsorshipRequestWithBody`, the parser `ParseRequestSponsorshipResponse`, and the types `RequestSponsorshipResponse` and `RequestSponsorshipJSONRequestBody`.
+- Added the models `GasSponsorshipRequestBody` (`Address`, `InjectiveAddress`) and `GasSponsorshipGrant`, with `GasSponsorshipGrantStatus` and its values `GasSponsorshipGrantStatusPENDING` and `GasSponsorshipGrantStatusCONFIRMED`.
+- `ClientInterface` and `ClientWithResponsesInterface` gained the new methods, so custom implementations or mocks of these interfaces must add them.
+- Raised the minimum Go version in `go.mod` and the development image from 1.26.10 to 1.26.11, which fixes the `net/http` vulnerability GO-2026-6859 found by govulncheck. The agent skill setup reference states the new version.
+
 ## v0.1.3, 2026-10-28
 
 - Updated Semgrep in the development image to 1.182.1 and refreshed its locked dependencies. certifi 2026.10.23 drops the emSign root CAs whose intermediate keys were compromised (GHSA-6q48-6c7w-9gw2).

@@ -172,6 +172,24 @@ func (e FillType) Valid() bool {
 	}
 }
 
+// Defines values for GasSponsorshipGrantStatus.
+const (
+	GasSponsorshipGrantStatusCONFIRMED GasSponsorshipGrantStatus = "CONFIRMED"
+	GasSponsorshipGrantStatusPENDING   GasSponsorshipGrantStatus = "PENDING"
+)
+
+// Valid indicates whether the value is a known member of the GasSponsorshipGrantStatus enum.
+func (e GasSponsorshipGrantStatus) Valid() bool {
+	switch e {
+	case GasSponsorshipGrantStatusCONFIRMED:
+		return true
+	case GasSponsorshipGrantStatusPENDING:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for Liquidity.
 const (
 	LiquidityMAKER Liquidity = "MAKER"
@@ -759,6 +777,30 @@ type FundingPaymentResponseObject struct {
 	Size             string    `json:"size"`
 	SubaccountNumber string    `json:"subaccountNumber"`
 	Ticker           string    `json:"ticker"`
+}
+
+// GasSponsorshipGrant defines model for GasSponsorshipGrant.
+type GasSponsorshipGrant struct {
+	AllowedMessages []string                  `json:"allowedMessages"`
+	ChainId         string                    `json:"chainId"`
+	ExpiresAt       string                    `json:"expiresAt"`
+	FeeDenom        string                    `json:"feeDenom"`
+	GasLimit        string                    `json:"gasLimit"`
+	GasPrice        string                    `json:"gasPrice"`
+	Grantee         string                    `json:"grantee"`
+	Granter         string                    `json:"granter"`
+	SpendLimit      string                    `json:"spendLimit"`
+	Status          GasSponsorshipGrantStatus `json:"status"`
+	TransactionHash *string                   `json:"transactionHash,omitempty"`
+}
+
+// GasSponsorshipGrantStatus defines model for GasSponsorshipGrantStatus.
+type GasSponsorshipGrantStatus string
+
+// GasSponsorshipRequestBody defines model for GasSponsorshipRequestBody.
+type GasSponsorshipRequestBody struct {
+	Address          string `json:"address"`
+	InjectiveAddress string `json:"injectiveAddress"`
 }
 
 // HeightResponse defines model for HeightResponse.
@@ -1537,6 +1579,9 @@ type RegisterTokenJSONRequestBody RegisterTokenJSONBody
 // UpdateCodeJSONRequestBody defines body for UpdateCode for application/json ContentType.
 type UpdateCodeJSONRequestBody UpdateCodeJSONBody
 
+// RequestSponsorshipJSONRequestBody defines body for RequestSponsorship for application/json ContentType.
+type RequestSponsorshipJSONRequestBody = GasSponsorshipRequestBody
+
 // AppleLoginRedirectJSONRequestBody defines body for AppleLoginRedirect for application/json ContentType.
 type AppleLoginRedirectJSONRequestBody = AppleLoginRedirectRequest
 
@@ -1745,6 +1790,32 @@ type ClientInterface interface {
 
 	// GetFundingPaymentsForParentSubaccount performs a GET /fundingPayments/parentSubaccount (the `GetFundingPaymentsForParentSubaccount` operationId) request.
 	GetFundingPaymentsForParentSubaccount(ctx context.Context, params *GetFundingPaymentsForParentSubaccountParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// RequestSponsorshipWithBody performs a POST /gasSponsorship (the `RequestSponsorship` operationId) request,
+	// with any type of body and a specified content type.
+	//
+	// Requests a fee allowance on Injective for an address that holds USDC to deposit to dYdX but
+	// no INJ to pay for gas.
+	//
+	// The response names the granter. To use the allowance, the address sends its own transfer
+	// with that granter set as the fee granter, and a fee of at most gasLimit * gasPrice.
+	//
+	// The allowance can be used once its status is CONFIRMED. If the status is PENDING, repeat the
+	// request: it returns the same allowance, and never grants a second one.
+	RequestSponsorshipWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// RequestSponsorship performs a POST /gasSponsorship (the `RequestSponsorship` operationId) request.
+	// Takes a body of the `application/json` content type.
+	//
+	// Requests a fee allowance on Injective for an address that holds USDC to deposit to dYdX but
+	// no INJ to pay for gas.
+	//
+	// The response names the granter. To use the allowance, the address sends its own transfer
+	// with that granter set as the fee granter, and a fee of at most gasLimit * gasPrice.
+	//
+	// The allowance can be used once its status is CONFIRMED. If the status is PENDING, repeat the
+	// request: it returns the same allowance, and never grants a second one.
+	RequestSponsorship(ctx context.Context, body RequestSponsorshipJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GetHeight performs a GET /height (the `GetHeight` operationId) request.
 	GetHeight(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -2125,6 +2196,52 @@ func (c *Client) GetFundingPayments(ctx context.Context, params *GetFundingPayme
 // GetFundingPaymentsForParentSubaccount performs a GET /fundingPayments/parentSubaccount (the `GetFundingPaymentsForParentSubaccount` operationId) request.
 func (c *Client) GetFundingPaymentsForParentSubaccount(ctx context.Context, params *GetFundingPaymentsForParentSubaccountParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewGetFundingPaymentsForParentSubaccountRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// RequestSponsorshipWithBody performs a POST /gasSponsorship (the `RequestSponsorship` operationId) request,
+// with any type of body and a specified content type.
+//
+// Requests a fee allowance on Injective for an address that holds USDC to deposit to dYdX but
+// no INJ to pay for gas.
+//
+// The response names the granter. To use the allowance, the address sends its own transfer
+// with that granter set as the fee granter, and a fee of at most gasLimit * gasPrice.
+//
+// The allowance can be used once its status is CONFIRMED. If the status is PENDING, repeat the
+// request: it returns the same allowance, and never grants a second one.
+func (c *Client) RequestSponsorshipWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRequestSponsorshipRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// RequestSponsorship performs a POST /gasSponsorship (the `RequestSponsorship` operationId) request.
+// Takes a body of the `application/json` content type.
+//
+// Requests a fee allowance on Injective for an address that holds USDC to deposit to dYdX but
+// no INJ to pay for gas.
+//
+// The response names the granter. To use the allowance, the address sends its own transfer
+// with that granter set as the fee granter, and a fee of at most gasLimit * gasPrice.
+//
+// The allowance can be used once its status is CONFIRMED. If the status is PENDING, repeat the
+// request: it returns the same allowance, and never grants a second one.
+func (c *Client) RequestSponsorship(ctx context.Context, body RequestSponsorshipJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRequestSponsorshipRequest(c.Server, body)
 	if err != nil {
 		return nil, err
 	}
@@ -3799,6 +3916,46 @@ func NewGetFundingPaymentsForParentSubaccountRequest(server string, params *GetF
 	if err != nil {
 		return nil, err
 	}
+
+	return req, nil
+}
+
+// NewRequestSponsorshipRequest calls the generic RequestSponsorship builder with application/json body
+func NewRequestSponsorshipRequest(server string, body RequestSponsorshipJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewRequestSponsorshipRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewRequestSponsorshipRequestWithBody constructs an http.Request for the RequestSponsorship method, with any body, and a specified content type
+func NewRequestSponsorshipRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/gasSponsorship")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
 
 	return req, nil
 }
@@ -6570,6 +6727,34 @@ type ClientWithResponsesInterface interface {
 	// Returns a wrapper object for the known response body format(s).
 	GetFundingPaymentsForParentSubaccountWithResponse(ctx context.Context, params *GetFundingPaymentsForParentSubaccountParams, reqEditors ...RequestEditorFn) (*GetFundingPaymentsForParentSubaccountResponse, error)
 
+	// RequestSponsorshipWithBodyWithResponse performs a POST /gasSponsorship (the `RequestSponsorship` operationId) request,
+	// with any type of body and a specified content type.
+	//
+	// Requests a fee allowance on Injective for an address that holds USDC to deposit to dYdX but
+	// no INJ to pay for gas.
+	//
+	// The response names the granter. To use the allowance, the address sends its own transfer
+	// with that granter set as the fee granter, and a fee of at most gasLimit * gasPrice.
+	//
+	// The allowance can be used once its status is CONFIRMED. If the status is PENDING, repeat the
+	// request: it returns the same allowance, and never grants a second one.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	RequestSponsorshipWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RequestSponsorshipResponse, error)
+
+	// RequestSponsorshipWithResponse performs a POST /gasSponsorship (the `RequestSponsorship` operationId) request.
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Requests a fee allowance on Injective for an address that holds USDC to deposit to dYdX but
+	// no INJ to pay for gas.
+	//
+	// The response names the granter. To use the allowance, the address sends its own transfer
+	// with that granter set as the fee granter, and a fee of at most gasLimit * gasPrice.
+	//
+	// The allowance can be used once its status is CONFIRMED. If the status is PENDING, repeat the
+	// request: it returns the same allowance, and never grants a second one.
+	RequestSponsorshipWithResponse(ctx context.Context, body RequestSponsorshipJSONRequestBody, reqEditors ...RequestEditorFn) (*RequestSponsorshipResponse, error)
+
 	// GetHeightWithResponse performs a GET /height (the `GetHeight` operationId) request.
 	//
 	// Returns a wrapper object for the known response body format(s).
@@ -7475,6 +7660,47 @@ func (r GetFundingPaymentsForParentSubaccountResponse) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r GetFundingPaymentsForParentSubaccountResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type RequestSponsorshipResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *GasSponsorshipGrant
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r RequestSponsorshipResponse) GetJSON200() *GasSponsorshipGrant {
+	return r.JSON200
+}
+
+// GetBody returns the raw response body bytes
+func (r RequestSponsorshipResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r RequestSponsorshipResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r RequestSponsorshipResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r RequestSponsorshipResponse) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -8976,6 +9202,46 @@ func (c *ClientWithResponses) GetFundingPaymentsForParentSubaccountWithResponse(
 	return ParseGetFundingPaymentsForParentSubaccountResponse(rsp)
 }
 
+// RequestSponsorshipWithBodyWithResponse performs a POST /gasSponsorship (the `RequestSponsorship` operationId) request,
+// with any type of body and a specified content type.
+//
+// Requests a fee allowance on Injective for an address that holds USDC to deposit to dYdX but
+// no INJ to pay for gas.
+//
+// The response names the granter. To use the allowance, the address sends its own transfer
+// with that granter set as the fee granter, and a fee of at most gasLimit * gasPrice.
+//
+// The allowance can be used once its status is CONFIRMED. If the status is PENDING, repeat the
+// request: it returns the same allowance, and never grants a second one.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) RequestSponsorshipWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RequestSponsorshipResponse, error) {
+	rsp, err := c.RequestSponsorshipWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRequestSponsorshipResponse(rsp)
+}
+
+// RequestSponsorshipWithResponse performs a POST /gasSponsorship (the `RequestSponsorship` operationId) request.
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Requests a fee allowance on Injective for an address that holds USDC to deposit to dYdX but
+// no INJ to pay for gas.
+//
+// The response names the granter. To use the allowance, the address sends its own transfer
+// with that granter set as the fee granter, and a fee of at most gasLimit * gasPrice.
+//
+// The allowance can be used once its status is CONFIRMED. If the status is PENDING, repeat the
+// request: it returns the same allowance, and never grants a second one.
+func (c *ClientWithResponses) RequestSponsorshipWithResponse(ctx context.Context, body RequestSponsorshipJSONRequestBody, reqEditors ...RequestEditorFn) (*RequestSponsorshipResponse, error) {
+	rsp, err := c.RequestSponsorship(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRequestSponsorshipResponse(rsp)
+}
+
 // GetHeightWithResponse performs a GET /height (the `GetHeight` operationId) request.
 //
 // Returns a wrapper object for the known response body format(s).
@@ -9804,6 +10070,32 @@ func ParseGetFundingPaymentsForParentSubaccountResponse(rsp *http.Response) (*Ge
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest FundingPaymentResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseRequestSponsorshipResponse parses an HTTP response from a RequestSponsorshipWithResponse call
+func ParseRequestSponsorshipResponse(rsp *http.Response) (*RequestSponsorshipResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &RequestSponsorshipResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest GasSponsorshipGrant
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
