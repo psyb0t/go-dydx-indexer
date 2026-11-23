@@ -142,6 +142,42 @@ func (e ComplianceStatus) Valid() bool {
 	}
 }
 
+// Defines values for DepositPolicyStatus.
+const (
+	DepositPolicyStatusACTIONREQUIRED DepositPolicyStatus = "ACTION_REQUIRED"
+	DepositPolicyStatusUNAVAILABLE    DepositPolicyStatus = "UNAVAILABLE"
+	DepositPolicyStatusUPTODATE       DepositPolicyStatus = "UP_TO_DATE"
+)
+
+// Valid indicates whether the value is a known member of the DepositPolicyStatus enum.
+func (e DepositPolicyStatus) Valid() bool {
+	switch e {
+	case DepositPolicyStatusACTIONREQUIRED:
+		return true
+	case DepositPolicyStatusUNAVAILABLE:
+		return true
+	case DepositPolicyStatusUPTODATE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DepositPolicyTurnkeyPolicyEffect.
+const (
+	DepositPolicyTurnkeyPolicyEffectEFFECTALLOW DepositPolicyTurnkeyPolicyEffect = "EFFECT_ALLOW"
+)
+
+// Valid indicates whether the value is a known member of the DepositPolicyTurnkeyPolicyEffect enum.
+func (e DepositPolicyTurnkeyPolicyEffect) Valid() bool {
+	switch e {
+	case DepositPolicyTurnkeyPolicyEffectEFFECTALLOW:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for FillType.
 const (
 	FillTypeDELEVERAGED  FillType = "DELEVERAGED"
@@ -719,6 +755,86 @@ type CreateReferralCodeResponse struct {
 	ReferralCode string `json:"referralCode"`
 }
 
+// DepositPolicyEvmApproval defines model for DepositPolicyEvmApproval.
+type DepositPolicyEvmApproval struct {
+	ChainId string              `json:"chainId"`
+	Status  DepositPolicyStatus `json:"status"`
+
+	// TypedData EIP-712 typed data that enables the bridge session key on a user's smart account, limited to
+	// the calls of a deposit. It is a complete `eth_signTypedData_v4` payload, including the type of
+	// the domain, to be signed as-is with the user's EVM key.
+	TypedData *DepositPolicyTypedData `json:"typedData,omitempty"`
+}
+
+// DepositPolicyResponse defines model for DepositPolicyResponse.
+type DepositPolicyResponse struct {
+	DydxAddress string `json:"dydxAddress"`
+	Evm         struct {
+		Address   string                     `json:"address"`
+		Approvals []DepositPolicyEvmApproval `json:"approvals"`
+	} `json:"evm"`
+	InjectiveAddress string `json:"injectiveAddress"`
+	Solana           struct {
+		ObsoletePolicyIds []string `json:"obsoletePolicyIds"`
+
+		// Policy A Turnkey policy, in the shape Turnkey's `createPolicy` activity takes.
+		Policy *DepositPolicyTurnkeyPolicy `json:"policy,omitempty"`
+		Status DepositPolicyStatus         `json:"status"`
+	} `json:"solana"`
+}
+
+// DepositPolicySignature defines model for DepositPolicySignature.
+type DepositPolicySignature struct {
+	ChainId   string `json:"chainId"`
+	Signature string `json:"signature"`
+}
+
+// DepositPolicyStatus defines model for DepositPolicyStatus.
+type DepositPolicyStatus string
+
+// DepositPolicyTurnkeyPolicy A Turnkey policy, in the shape Turnkey's `createPolicy` activity takes.
+type DepositPolicyTurnkeyPolicy struct {
+	Condition  string                           `json:"condition"`
+	Consensus  string                           `json:"consensus"`
+	Effect     DepositPolicyTurnkeyPolicyEffect `json:"effect"`
+	Notes      string                           `json:"notes"`
+	PolicyName string                           `json:"policyName"`
+}
+
+// DepositPolicyTurnkeyPolicyEffect defines model for DepositPolicyTurnkeyPolicy.Effect.
+type DepositPolicyTurnkeyPolicyEffect string
+
+// DepositPolicyTypedData EIP-712 typed data that enables the bridge session key on a user's smart account, limited to
+// the calls of a deposit. It is a complete `eth_signTypedData_v4` payload, including the type of
+// the domain, to be signed as-is with the user's EVM key.
+type DepositPolicyTypedData struct {
+	Domain struct {
+		ChainId           float64 `json:"chainId"`
+		Name              string  `json:"name"`
+		VerifyingContract string  `json:"verifyingContract"`
+		Version           string  `json:"version"`
+	} `json:"domain"`
+	Message struct {
+		Hook          string  `json:"hook"`
+		HookData      string  `json:"hookData"`
+		Nonce         float64 `json:"nonce"`
+		SelectorData  string  `json:"selectorData"`
+		ValidationId  string  `json:"validationId"`
+		ValidatorData string  `json:"validatorData"`
+	} `json:"message"`
+	PrimaryType string `json:"primaryType"`
+	Types       struct {
+		EIP712Domain []struct {
+			Name string `json:"name"`
+			Type string `json:"type"`
+		} `json:"EIP712Domain"`
+		Enable []struct {
+			Name string `json:"name"`
+			Type string `json:"type"`
+		} `json:"Enable"`
+	} `json:"types"`
+}
+
 // FillResponse defines model for FillResponse.
 type FillResponse struct {
 	Fills        []FillResponseObject `json:"fills"`
@@ -1103,6 +1219,17 @@ type SubaccountResponseObject struct {
 	OpenPerpetualPositions     PerpetualPositionsMap `json:"openPerpetualPositions"`
 	SubaccountNumber           int32                 `json:"subaccountNumber"`
 	UpdatedAtHeight            string                `json:"updatedAtHeight"`
+}
+
+// SubmitDepositPolicyRequest defines model for SubmitDepositPolicyRequest.
+type SubmitDepositPolicyRequest struct {
+	DydxAddress string                   `json:"dydxAddress"`
+	Signatures  []DepositPolicySignature `json:"signatures"`
+}
+
+// SubmitDepositPolicyResponse defines model for SubmitDepositPolicyResponse.
+type SubmitDepositPolicyResponse struct {
+	ApprovedChainIds []string `json:"approvedChainIds"`
 }
 
 // TimeResponse defines model for TimeResponse.
@@ -1585,6 +1712,9 @@ type RequestSponsorshipJSONRequestBody = GasSponsorshipRequestBody
 // AppleLoginRedirectJSONRequestBody defines body for AppleLoginRedirect for application/json ContentType.
 type AppleLoginRedirectJSONRequestBody = AppleLoginRedirectRequest
 
+// SubmitDepositPolicyJSONRequestBody defines body for SubmitDepositPolicy for application/json ContentType.
+type SubmitDepositPolicyJSONRequestBody = SubmitDepositPolicyRequest
+
 // SignInJSONRequestBody defines body for SignIn for application/json ContentType.
 type SignInJSONRequestBody = SignInRequest
 
@@ -1905,6 +2035,37 @@ type ClientInterface interface {
 	// Handles Apple login redirect from Apple's authorization server
 	// Exchanges authorization code for ID token and processes user login/signup
 	AppleLoginRedirect(ctx context.Context, body AppleLoginRedirectJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SubmitDepositPolicyWithBody performs a POST /turnkey/depositPolicy (the `SubmitDepositPolicy` operationId) request,
+	// with any type of body and a specified content type.
+	//
+	// Stores the user's signatures of the typed data from GET /depositPolicy/{dydxAddress}. A
+	// signature that is not the user's signature of that typed data is rejected, and nothing is
+	// stored.
+	SubmitDepositPolicyWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SubmitDepositPolicy performs a POST /turnkey/depositPolicy (the `SubmitDepositPolicy` operationId) request.
+	// Takes a body of the `application/json` content type.
+	//
+	// Stores the user's signatures of the typed data from GET /depositPolicy/{dydxAddress}. A
+	// signature that is not the user's signature of that typed data is rejected, and nothing is
+	// stored.
+	SubmitDepositPolicy(ctx context.Context, body SubmitDepositPolicyJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetDepositPolicy performs a GET /turnkey/depositPolicy/{dydxAddress} (the `GetDepositPolicy` operationId) request.
+	//
+	// Returns what the user has to approve before deposits to their deposit addresses can be
+	// bridged, for an account that was set up before the deposit route changed to go through
+	// Injective. The service cannot make these approvals itself: once an account is set up, only
+	// the user can change what the service may sign for them.
+	//
+	// - `evm.approvals`: for each chain with status ACTION_REQUIRED, sign `typedData` with the
+	//   user's EVM key and send the signatures to POST /depositPolicy.
+	// - `solana`: with status ACTION_REQUIRED, create `policy` in the user's Turnkey
+	//   sub-organization. The policies in `obsoletePolicyIds` can be deleted.
+	//
+	// Deposits arrive at `injectiveAddress`, and the user sends them on to dYdX from there.
+	GetDepositPolicy(ctx context.Context, dydxAddress string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// SignInWithBody performs a POST /turnkey/signin (the `SignIn` operationId) request,
 	// with any type of body and a specified content type.
@@ -2601,6 +2762,67 @@ func (c *Client) AppleLoginRedirectWithBody(ctx context.Context, contentType str
 // Exchanges authorization code for ID token and processes user login/signup
 func (c *Client) AppleLoginRedirect(ctx context.Context, body AppleLoginRedirectJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewAppleLoginRedirectRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SubmitDepositPolicyWithBody performs a POST /turnkey/depositPolicy (the `SubmitDepositPolicy` operationId) request,
+// with any type of body and a specified content type.
+//
+// Stores the user's signatures of the typed data from GET /depositPolicy/{dydxAddress}. A
+// signature that is not the user's signature of that typed data is rejected, and nothing is
+// stored.
+func (c *Client) SubmitDepositPolicyWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSubmitDepositPolicyRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SubmitDepositPolicy performs a POST /turnkey/depositPolicy (the `SubmitDepositPolicy` operationId) request.
+// Takes a body of the `application/json` content type.
+//
+// Stores the user's signatures of the typed data from GET /depositPolicy/{dydxAddress}. A
+// signature that is not the user's signature of that typed data is rejected, and nothing is
+// stored.
+func (c *Client) SubmitDepositPolicy(ctx context.Context, body SubmitDepositPolicyJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSubmitDepositPolicyRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// GetDepositPolicy performs a GET /turnkey/depositPolicy/{dydxAddress} (the `GetDepositPolicy` operationId) request.
+//
+// Returns what the user has to approve before deposits to their deposit addresses can be
+// bridged, for an account that was set up before the deposit route changed to go through
+// Injective. The service cannot make these approvals itself: once an account is set up, only
+// the user can change what the service may sign for them.
+//
+//   - `evm.approvals`: for each chain with status ACTION_REQUIRED, sign `typedData` with the
+//     user's EVM key and send the signatures to POST /depositPolicy.
+//   - `solana`: with status ACTION_REQUIRED, create `policy` in the user's Turnkey
+//     sub-organization. The policies in `obsoletePolicyIds` can be deleted.
+//
+// Deposits arrive at `injectiveAddress`, and the user sends them on to dYdX from there.
+func (c *Client) GetDepositPolicy(ctx context.Context, dydxAddress string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetDepositPolicyRequest(c.Server, dydxAddress)
 	if err != nil {
 		return nil, err
 	}
@@ -6368,6 +6590,80 @@ func NewAppleLoginRedirectRequestWithBody(server string, contentType string, bod
 	return req, nil
 }
 
+// NewSubmitDepositPolicyRequest calls the generic SubmitDepositPolicy builder with application/json body
+func NewSubmitDepositPolicyRequest(server string, body SubmitDepositPolicyJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewSubmitDepositPolicyRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewSubmitDepositPolicyRequestWithBody constructs an http.Request for the SubmitDepositPolicy method, with any body, and a specified content type
+func NewSubmitDepositPolicyRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/turnkey/depositPolicy")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewGetDepositPolicyRequest constructs an http.Request for the GetDepositPolicy method
+func NewGetDepositPolicyRequest(server string, dydxAddress string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "dydxAddress", dydxAddress, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/turnkey/depositPolicy/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewSignInRequest calls the generic SignIn builder with application/json body
 func NewSignInRequest(server string, body SignInJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
@@ -6895,6 +7191,41 @@ type ClientWithResponsesInterface interface {
 	// Handles Apple login redirect from Apple's authorization server
 	// Exchanges authorization code for ID token and processes user login/signup
 	AppleLoginRedirectWithResponse(ctx context.Context, body AppleLoginRedirectJSONRequestBody, reqEditors ...RequestEditorFn) (*AppleLoginRedirectResponse, error)
+
+	// SubmitDepositPolicyWithBodyWithResponse performs a POST /turnkey/depositPolicy (the `SubmitDepositPolicy` operationId) request,
+	// with any type of body and a specified content type.
+	//
+	// Stores the user's signatures of the typed data from GET /depositPolicy/{dydxAddress}. A
+	// signature that is not the user's signature of that typed data is rejected, and nothing is
+	// stored.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	SubmitDepositPolicyWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SubmitDepositPolicyResponse2, error)
+
+	// SubmitDepositPolicyWithResponse performs a POST /turnkey/depositPolicy (the `SubmitDepositPolicy` operationId) request.
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Stores the user's signatures of the typed data from GET /depositPolicy/{dydxAddress}. A
+	// signature that is not the user's signature of that typed data is rejected, and nothing is
+	// stored.
+	SubmitDepositPolicyWithResponse(ctx context.Context, body SubmitDepositPolicyJSONRequestBody, reqEditors ...RequestEditorFn) (*SubmitDepositPolicyResponse2, error)
+
+	// GetDepositPolicyWithResponse performs a GET /turnkey/depositPolicy/{dydxAddress} (the `GetDepositPolicy` operationId) request.
+	//
+	// Returns what the user has to approve before deposits to their deposit addresses can be
+	// bridged, for an account that was set up before the deposit route changed to go through
+	// Injective. The service cannot make these approvals itself: once an account is set up, only
+	// the user can change what the service may sign for them.
+	//
+	// - `evm.approvals`: for each chain with status ACTION_REQUIRED, sign `typedData` with the
+	//   user's EVM key and send the signatures to POST /depositPolicy.
+	// - `solana`: with status ACTION_REQUIRED, create `policy` in the user's Turnkey
+	//   sub-organization. The policies in `obsoletePolicyIds` can be deleted.
+	//
+	// Deposits arrive at `injectiveAddress`, and the user sends them on to dYdX from there.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	GetDepositPolicyWithResponse(ctx context.Context, dydxAddress string, reqEditors ...RequestEditorFn) (*GetDepositPolicyResponse, error)
 
 	// SignInWithBodyWithResponse performs a POST /turnkey/signin (the `SignIn` operationId) request,
 	// with any type of body and a specified content type.
@@ -8773,6 +9104,88 @@ func (r AppleLoginRedirectResponse) ContentType() string {
 	return ""
 }
 
+type SubmitDepositPolicyResponse2 struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *SubmitDepositPolicyResponse
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r SubmitDepositPolicyResponse2) GetJSON200() *SubmitDepositPolicyResponse {
+	return r.JSON200
+}
+
+// GetBody returns the raw response body bytes
+func (r SubmitDepositPolicyResponse2) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r SubmitDepositPolicyResponse2) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r SubmitDepositPolicyResponse2) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r SubmitDepositPolicyResponse2) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type GetDepositPolicyResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *DepositPolicyResponse
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r GetDepositPolicyResponse) GetJSON200() *DepositPolicyResponse {
+	return r.JSON200
+}
+
+// GetBody returns the raw response body bytes
+func (r GetDepositPolicyResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r GetDepositPolicyResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetDepositPolicyResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetDepositPolicyResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type SignInResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -9543,6 +9956,59 @@ func (c *ClientWithResponses) AppleLoginRedirectWithResponse(ctx context.Context
 		return nil, err
 	}
 	return ParseAppleLoginRedirectResponse(rsp)
+}
+
+// SubmitDepositPolicyWithBodyWithResponse performs a POST /turnkey/depositPolicy (the `SubmitDepositPolicy` operationId) request,
+// with any type of body and a specified content type.
+//
+// Stores the user's signatures of the typed data from GET /depositPolicy/{dydxAddress}. A
+// signature that is not the user's signature of that typed data is rejected, and nothing is
+// stored.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) SubmitDepositPolicyWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SubmitDepositPolicyResponse2, error) {
+	rsp, err := c.SubmitDepositPolicyWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSubmitDepositPolicyResponse2(rsp)
+}
+
+// SubmitDepositPolicyWithResponse performs a POST /turnkey/depositPolicy (the `SubmitDepositPolicy` operationId) request.
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Stores the user's signatures of the typed data from GET /depositPolicy/{dydxAddress}. A
+// signature that is not the user's signature of that typed data is rejected, and nothing is
+// stored.
+func (c *ClientWithResponses) SubmitDepositPolicyWithResponse(ctx context.Context, body SubmitDepositPolicyJSONRequestBody, reqEditors ...RequestEditorFn) (*SubmitDepositPolicyResponse2, error) {
+	rsp, err := c.SubmitDepositPolicy(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSubmitDepositPolicyResponse2(rsp)
+}
+
+// GetDepositPolicyWithResponse performs a GET /turnkey/depositPolicy/{dydxAddress} (the `GetDepositPolicy` operationId) request.
+//
+// Returns what the user has to approve before deposits to their deposit addresses can be
+// bridged, for an account that was set up before the deposit route changed to go through
+// Injective. The service cannot make these approvals itself: once an account is set up, only
+// the user can change what the service may sign for them.
+//
+//   - `evm.approvals`: for each chain with status ACTION_REQUIRED, sign `typedData` with the
+//     user's EVM key and send the signatures to POST /depositPolicy.
+//   - `solana`: with status ACTION_REQUIRED, create `policy` in the user's Turnkey
+//     sub-organization. The policies in `obsoletePolicyIds` can be deleted.
+//
+// Deposits arrive at `injectiveAddress`, and the user sends them on to dYdX from there.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) GetDepositPolicyWithResponse(ctx context.Context, dydxAddress string, reqEditors ...RequestEditorFn) (*GetDepositPolicyResponse, error) {
+	rsp, err := c.GetDepositPolicy(ctx, dydxAddress, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetDepositPolicyResponse(rsp)
 }
 
 // SignInWithBodyWithResponse performs a POST /turnkey/signin (the `SignIn` operationId) request,
@@ -10772,6 +11238,58 @@ func ParseAppleLoginRedirectResponse(rsp *http.Response) (*AppleLoginRedirectRes
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest AppleLoginResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseSubmitDepositPolicyResponse2 parses an HTTP response from a SubmitDepositPolicyWithResponse call
+func ParseSubmitDepositPolicyResponse2(rsp *http.Response) (*SubmitDepositPolicyResponse2, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &SubmitDepositPolicyResponse2{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest SubmitDepositPolicyResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetDepositPolicyResponse parses an HTTP response from a GetDepositPolicyWithResponse call
+func ParseGetDepositPolicyResponse(rsp *http.Response) (*GetDepositPolicyResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetDepositPolicyResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest DepositPolicyResponse
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

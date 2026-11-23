@@ -2,6 +2,15 @@
 
 All notable changes per release. Versions follow [semver](https://semver.org).
 
+## v0.2.0, 2026-11-23
+
+- Added the `GET /turnkey/depositPolicy/{dydxAddress}` endpoint with `Client.GetDepositPolicy` and `ClientWithResponses.GetDepositPolicyWithResponse`.
+- Added the `POST /turnkey/depositPolicy` endpoint with `Client.SubmitDepositPolicy`, `Client.SubmitDepositPolicyWithBody`, `ClientWithResponses.SubmitDepositPolicyWithResponse` and `ClientWithResponses.SubmitDepositPolicyWithBodyWithResponse`.
+- Added the request builders `NewGetDepositPolicyRequest`, `NewSubmitDepositPolicyRequest` and `NewSubmitDepositPolicyRequestWithBody`, the parsers `ParseGetDepositPolicyResponse` and `ParseSubmitDepositPolicyResponse2`, and the response types `GetDepositPolicyResponse`, `SubmitDepositPolicyResponse` and `SubmitDepositPolicyResponse2`.
+- Added the models `DepositPolicyResponse`, `DepositPolicyEvmApproval`, `DepositPolicyTypedData`, `DepositPolicyTurnkeyPolicy`, `DepositPolicySignature`, `SubmitDepositPolicyRequest` and `SubmitDepositPolicyJSONRequestBody`.
+- Added `DepositPolicyStatus` with the values `DepositPolicyStatusACTIONREQUIRED`, `DepositPolicyStatusUNAVAILABLE` and `DepositPolicyStatusUPTODATE`, and `DepositPolicyTurnkeyPolicyEffect` with the value `DepositPolicyTurnkeyPolicyEffectEFFECTALLOW`.
+- `ClientInterface` and `ClientWithResponsesInterface` gained the new methods, so custom implementations or mocks of these interfaces must add them.
+
 ## v0.1.4, 2026-11-19
 
 - Added the `/gasSponsorship` endpoint (spec version v1.0.0) with `Client.RequestSponsorship` and `Client.RequestSponsorshipWithBody`, and `ClientWithResponses.RequestSponsorshipWithResponse` and `ClientWithResponses.RequestSponsorshipWithBodyWithResponse`.
