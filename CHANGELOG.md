@@ -2,6 +2,13 @@
 
 All notable changes per release. Versions follow [semver](https://semver.org).
 
+## v0.3.0, 2026-11-24
+
+- Changed `(*Client).GetDepositPolicy`, `(*ClientWithResponses).GetDepositPolicyWithResponse`, their `ClientInterface` and `ClientWithResponsesInterface` methods, and `NewGetDepositPolicyRequest`: they now take a `*GetDepositPolicyParams` argument before the request editors. Existing callers must pass it, or `nil`.
+- Added `GetDepositPolicyParams` with a required `InjectiveAddress` field, sent as the `injectiveAddress` query parameter.
+- Added the `InjectiveAddress` field to `SubmitDepositPolicyRequest`, sent as `injectiveAddress` in the JSON body.
+- Updated the doc comments for `GetDepositPolicy` and `SubmitDepositPolicy`: approvals now permit bridging to `injectiveAddress` only.
+
 ## v0.2.0, 2026-11-23
 
 - Added the `GET /turnkey/depositPolicy/{dydxAddress}` endpoint with `Client.GetDepositPolicy` and `ClientWithResponses.GetDepositPolicyWithResponse`.

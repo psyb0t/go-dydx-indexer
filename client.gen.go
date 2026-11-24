@@ -1223,8 +1223,9 @@ type SubaccountResponseObject struct {
 
 // SubmitDepositPolicyRequest defines model for SubmitDepositPolicyRequest.
 type SubmitDepositPolicyRequest struct {
-	DydxAddress string                   `json:"dydxAddress"`
-	Signatures  []DepositPolicySignature `json:"signatures"`
+	DydxAddress      string                   `json:"dydxAddress"`
+	InjectiveAddress string                   `json:"injectiveAddress"`
+	Signatures       []DepositPolicySignature `json:"signatures"`
 }
 
 // SubmitDepositPolicyResponse defines model for SubmitDepositPolicyResponse.
@@ -1684,6 +1685,11 @@ type GetTransfersForParentSubaccountParams struct {
 	Page                    *float64   `form:"page,omitempty" json:"page,omitempty"`
 }
 
+// GetDepositPolicyParams defines parameters for GetDepositPolicy.
+type GetDepositPolicyParams struct {
+	InjectiveAddress string `form:"injectiveAddress" json:"injectiveAddress"`
+}
+
 // UploadAddressJSONBody defines parameters for UploadAddress.
 type UploadAddressJSONBody struct {
 	DydxAddress string `json:"dydxAddress"`
@@ -2039,7 +2045,8 @@ type ClientInterface interface {
 	// SubmitDepositPolicyWithBody performs a POST /turnkey/depositPolicy (the `SubmitDepositPolicy` operationId) request,
 	// with any type of body and a specified content type.
 	//
-	// Stores the user's signatures of the typed data from GET /depositPolicy/{dydxAddress}. A
+	// Stores the user's signatures of the typed data from GET /depositPolicy/{dydxAddress} for
+	// `injectiveAddress`, and that address as the account the user's deposits are bridged to. A
 	// signature that is not the user's signature of that typed data is rejected, and nothing is
 	// stored.
 	SubmitDepositPolicyWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -2047,7 +2054,8 @@ type ClientInterface interface {
 	// SubmitDepositPolicy performs a POST /turnkey/depositPolicy (the `SubmitDepositPolicy` operationId) request.
 	// Takes a body of the `application/json` content type.
 	//
-	// Stores the user's signatures of the typed data from GET /depositPolicy/{dydxAddress}. A
+	// Stores the user's signatures of the typed data from GET /depositPolicy/{dydxAddress} for
+	// `injectiveAddress`, and that address as the account the user's deposits are bridged to. A
 	// signature that is not the user's signature of that typed data is rejected, and nothing is
 	// stored.
 	SubmitDepositPolicy(ctx context.Context, body SubmitDepositPolicyJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -2055,17 +2063,18 @@ type ClientInterface interface {
 	// GetDepositPolicy performs a GET /turnkey/depositPolicy/{dydxAddress} (the `GetDepositPolicy` operationId) request.
 	//
 	// Returns what the user has to approve before deposits to their deposit addresses can be
-	// bridged, for an account that was set up before the deposit route changed to go through
-	// Injective. The service cannot make these approvals itself: once an account is set up, only
-	// the user can change what the service may sign for them.
+	// bridged to `injectiveAddress`, the Injective account they hold the key for. The service
+	// cannot work that account out or make these approvals itself: once an account is set up,
+	// only the user can change what the service may sign for them.
 	//
 	// - `evm.approvals`: for each chain with status ACTION_REQUIRED, sign `typedData` with the
 	//   user's EVM key and send the signatures to POST /depositPolicy.
 	// - `solana`: with status ACTION_REQUIRED, create `policy` in the user's Turnkey
 	//   sub-organization. The policies in `obsoletePolicyIds` can be deleted.
 	//
-	// Deposits arrive at `injectiveAddress`, and the user sends them on to dYdX from there.
-	GetDepositPolicy(ctx context.Context, dydxAddress string, reqEditors ...RequestEditorFn) (*http.Response, error)
+	// Both permit bridging to `injectiveAddress` and nowhere else. Deposits arrive there once
+	// they are approved, and the user sends them on to dYdX from it.
+	GetDepositPolicy(ctx context.Context, dydxAddress string, params *GetDepositPolicyParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// SignInWithBody performs a POST /turnkey/signin (the `SignIn` operationId) request,
 	// with any type of body and a specified content type.
@@ -2775,7 +2784,8 @@ func (c *Client) AppleLoginRedirect(ctx context.Context, body AppleLoginRedirect
 // SubmitDepositPolicyWithBody performs a POST /turnkey/depositPolicy (the `SubmitDepositPolicy` operationId) request,
 // with any type of body and a specified content type.
 //
-// Stores the user's signatures of the typed data from GET /depositPolicy/{dydxAddress}. A
+// Stores the user's signatures of the typed data from GET /depositPolicy/{dydxAddress} for
+// `injectiveAddress`, and that address as the account the user's deposits are bridged to. A
 // signature that is not the user's signature of that typed data is rejected, and nothing is
 // stored.
 func (c *Client) SubmitDepositPolicyWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -2793,7 +2803,8 @@ func (c *Client) SubmitDepositPolicyWithBody(ctx context.Context, contentType st
 // SubmitDepositPolicy performs a POST /turnkey/depositPolicy (the `SubmitDepositPolicy` operationId) request.
 // Takes a body of the `application/json` content type.
 //
-// Stores the user's signatures of the typed data from GET /depositPolicy/{dydxAddress}. A
+// Stores the user's signatures of the typed data from GET /depositPolicy/{dydxAddress} for
+// `injectiveAddress`, and that address as the account the user's deposits are bridged to. A
 // signature that is not the user's signature of that typed data is rejected, and nothing is
 // stored.
 func (c *Client) SubmitDepositPolicy(ctx context.Context, body SubmitDepositPolicyJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -2811,18 +2822,19 @@ func (c *Client) SubmitDepositPolicy(ctx context.Context, body SubmitDepositPoli
 // GetDepositPolicy performs a GET /turnkey/depositPolicy/{dydxAddress} (the `GetDepositPolicy` operationId) request.
 //
 // Returns what the user has to approve before deposits to their deposit addresses can be
-// bridged, for an account that was set up before the deposit route changed to go through
-// Injective. The service cannot make these approvals itself: once an account is set up, only
-// the user can change what the service may sign for them.
+// bridged to `injectiveAddress`, the Injective account they hold the key for. The service
+// cannot work that account out or make these approvals itself: once an account is set up,
+// only the user can change what the service may sign for them.
 //
 //   - `evm.approvals`: for each chain with status ACTION_REQUIRED, sign `typedData` with the
 //     user's EVM key and send the signatures to POST /depositPolicy.
 //   - `solana`: with status ACTION_REQUIRED, create `policy` in the user's Turnkey
 //     sub-organization. The policies in `obsoletePolicyIds` can be deleted.
 //
-// Deposits arrive at `injectiveAddress`, and the user sends them on to dYdX from there.
-func (c *Client) GetDepositPolicy(ctx context.Context, dydxAddress string, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewGetDepositPolicyRequest(c.Server, dydxAddress)
+// Both permit bridging to `injectiveAddress` and nowhere else. Deposits arrive there once
+// they are approved, and the user sends them on to dYdX from it.
+func (c *Client) GetDepositPolicy(ctx context.Context, dydxAddress string, params *GetDepositPolicyParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetDepositPolicyRequest(c.Server, dydxAddress, params)
 	if err != nil {
 		return nil, err
 	}
@@ -6631,7 +6643,7 @@ func NewSubmitDepositPolicyRequestWithBody(server string, contentType string, bo
 }
 
 // NewGetDepositPolicyRequest constructs an http.Request for the GetDepositPolicy method
-func NewGetDepositPolicyRequest(server string, dydxAddress string) (*http.Request, error) {
+func NewGetDepositPolicyRequest(server string, dydxAddress string, params *GetDepositPolicyParams) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
@@ -6654,6 +6666,29 @@ func NewGetDepositPolicyRequest(server string, dydxAddress string) (*http.Reques
 	queryURL, err := serverURL.Parse(operationPath)
 	if err != nil {
 		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if queryFrag, err := runtime.StyleParamWithOptions("form", true, "injectiveAddress", params.InjectiveAddress, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+			return nil, err
+		} else {
+			for _, qp := range strings.Split(queryFrag, "&") {
+				rawQueryFragments = append(rawQueryFragments, qp)
+			}
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
 	}
 
 	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
@@ -7195,7 +7230,8 @@ type ClientWithResponsesInterface interface {
 	// SubmitDepositPolicyWithBodyWithResponse performs a POST /turnkey/depositPolicy (the `SubmitDepositPolicy` operationId) request,
 	// with any type of body and a specified content type.
 	//
-	// Stores the user's signatures of the typed data from GET /depositPolicy/{dydxAddress}. A
+	// Stores the user's signatures of the typed data from GET /depositPolicy/{dydxAddress} for
+	// `injectiveAddress`, and that address as the account the user's deposits are bridged to. A
 	// signature that is not the user's signature of that typed data is rejected, and nothing is
 	// stored.
 	//
@@ -7205,7 +7241,8 @@ type ClientWithResponsesInterface interface {
 	// SubmitDepositPolicyWithResponse performs a POST /turnkey/depositPolicy (the `SubmitDepositPolicy` operationId) request.
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
-	// Stores the user's signatures of the typed data from GET /depositPolicy/{dydxAddress}. A
+	// Stores the user's signatures of the typed data from GET /depositPolicy/{dydxAddress} for
+	// `injectiveAddress`, and that address as the account the user's deposits are bridged to. A
 	// signature that is not the user's signature of that typed data is rejected, and nothing is
 	// stored.
 	SubmitDepositPolicyWithResponse(ctx context.Context, body SubmitDepositPolicyJSONRequestBody, reqEditors ...RequestEditorFn) (*SubmitDepositPolicyResponse2, error)
@@ -7213,19 +7250,20 @@ type ClientWithResponsesInterface interface {
 	// GetDepositPolicyWithResponse performs a GET /turnkey/depositPolicy/{dydxAddress} (the `GetDepositPolicy` operationId) request.
 	//
 	// Returns what the user has to approve before deposits to their deposit addresses can be
-	// bridged, for an account that was set up before the deposit route changed to go through
-	// Injective. The service cannot make these approvals itself: once an account is set up, only
-	// the user can change what the service may sign for them.
+	// bridged to `injectiveAddress`, the Injective account they hold the key for. The service
+	// cannot work that account out or make these approvals itself: once an account is set up,
+	// only the user can change what the service may sign for them.
 	//
 	// - `evm.approvals`: for each chain with status ACTION_REQUIRED, sign `typedData` with the
 	//   user's EVM key and send the signatures to POST /depositPolicy.
 	// - `solana`: with status ACTION_REQUIRED, create `policy` in the user's Turnkey
 	//   sub-organization. The policies in `obsoletePolicyIds` can be deleted.
 	//
-	// Deposits arrive at `injectiveAddress`, and the user sends them on to dYdX from there.
+	// Both permit bridging to `injectiveAddress` and nowhere else. Deposits arrive there once
+	// they are approved, and the user sends them on to dYdX from it.
 	//
 	// Returns a wrapper object for the known response body format(s).
-	GetDepositPolicyWithResponse(ctx context.Context, dydxAddress string, reqEditors ...RequestEditorFn) (*GetDepositPolicyResponse, error)
+	GetDepositPolicyWithResponse(ctx context.Context, dydxAddress string, params *GetDepositPolicyParams, reqEditors ...RequestEditorFn) (*GetDepositPolicyResponse, error)
 
 	// SignInWithBodyWithResponse performs a POST /turnkey/signin (the `SignIn` operationId) request,
 	// with any type of body and a specified content type.
@@ -9961,7 +9999,8 @@ func (c *ClientWithResponses) AppleLoginRedirectWithResponse(ctx context.Context
 // SubmitDepositPolicyWithBodyWithResponse performs a POST /turnkey/depositPolicy (the `SubmitDepositPolicy` operationId) request,
 // with any type of body and a specified content type.
 //
-// Stores the user's signatures of the typed data from GET /depositPolicy/{dydxAddress}. A
+// Stores the user's signatures of the typed data from GET /depositPolicy/{dydxAddress} for
+// `injectiveAddress`, and that address as the account the user's deposits are bridged to. A
 // signature that is not the user's signature of that typed data is rejected, and nothing is
 // stored.
 //
@@ -9977,7 +10016,8 @@ func (c *ClientWithResponses) SubmitDepositPolicyWithBodyWithResponse(ctx contex
 // SubmitDepositPolicyWithResponse performs a POST /turnkey/depositPolicy (the `SubmitDepositPolicy` operationId) request.
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
-// Stores the user's signatures of the typed data from GET /depositPolicy/{dydxAddress}. A
+// Stores the user's signatures of the typed data from GET /depositPolicy/{dydxAddress} for
+// `injectiveAddress`, and that address as the account the user's deposits are bridged to. A
 // signature that is not the user's signature of that typed data is rejected, and nothing is
 // stored.
 func (c *ClientWithResponses) SubmitDepositPolicyWithResponse(ctx context.Context, body SubmitDepositPolicyJSONRequestBody, reqEditors ...RequestEditorFn) (*SubmitDepositPolicyResponse2, error) {
@@ -9991,20 +10031,21 @@ func (c *ClientWithResponses) SubmitDepositPolicyWithResponse(ctx context.Contex
 // GetDepositPolicyWithResponse performs a GET /turnkey/depositPolicy/{dydxAddress} (the `GetDepositPolicy` operationId) request.
 //
 // Returns what the user has to approve before deposits to their deposit addresses can be
-// bridged, for an account that was set up before the deposit route changed to go through
-// Injective. The service cannot make these approvals itself: once an account is set up, only
-// the user can change what the service may sign for them.
+// bridged to `injectiveAddress`, the Injective account they hold the key for. The service
+// cannot work that account out or make these approvals itself: once an account is set up,
+// only the user can change what the service may sign for them.
 //
 //   - `evm.approvals`: for each chain with status ACTION_REQUIRED, sign `typedData` with the
 //     user's EVM key and send the signatures to POST /depositPolicy.
 //   - `solana`: with status ACTION_REQUIRED, create `policy` in the user's Turnkey
 //     sub-organization. The policies in `obsoletePolicyIds` can be deleted.
 //
-// Deposits arrive at `injectiveAddress`, and the user sends them on to dYdX from there.
+// Both permit bridging to `injectiveAddress` and nowhere else. Deposits arrive there once
+// they are approved, and the user sends them on to dYdX from it.
 //
 // Returns a wrapper object for the known response body format(s).
-func (c *ClientWithResponses) GetDepositPolicyWithResponse(ctx context.Context, dydxAddress string, reqEditors ...RequestEditorFn) (*GetDepositPolicyResponse, error) {
-	rsp, err := c.GetDepositPolicy(ctx, dydxAddress, reqEditors...)
+func (c *ClientWithResponses) GetDepositPolicyWithResponse(ctx context.Context, dydxAddress string, params *GetDepositPolicyParams, reqEditors ...RequestEditorFn) (*GetDepositPolicyResponse, error) {
+	rsp, err := c.GetDepositPolicy(ctx, dydxAddress, params, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
